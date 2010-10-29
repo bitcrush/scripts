@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# this script toggles the phono preamps on an audio4dj
+# usb soundcard on/off
+
+# functions
+errorexit() { echo "error: $1"; exit $2; }
+amixertoggle() { amixer -c $dev cset numid=1 $1 > /dev/null 2&>1; }
+
+# check for first commandline argument
+[[ -z "$1" ]] && errorexit "use ${0##*/} [phono|line]" 1
+
+# determine device number
+dev=$(aplay -l | grep Audio4DJ | grep "device 0" | cut -d\  -f 2 | cut -d: -f 1)
+
+# check if audio4dj is connected
+[[ -z "$dev" ]] && errorexit "Audio 4 DJ is not connected" 1
+
+result=0
+
+if [ "$1" == "phono" ] ; then
+    amixertoggle 1
+    result=$?
+elif [ "$1" == "line" ] ; then
+    amixertoggle 0
+    result=$?
+else
+    errorexit "use ${0##*/} [phono|line]" 1
+fi
+
+# print out error if anything went wrong
+[[ $result -ne 0 ]] && errorexit "couldn't set Audio 4 DJ input" $result
