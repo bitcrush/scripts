@@ -1,0 +1,97 @@
+#!/bin/bash
+# vim: fdm=marker ts=4 sw=4
+
+# vdb_insert
+# feed videodb (http://www.videodb.net) database from mediainfo output
+#
+# dependencies: mediainfo, mysql-clients
+
+# location of config file
+CONFIG="$XDG_CONFIG_HOME/scriptz/vdb_insert.conf"
+
+# error function
+errorexit() { echo; echo "error: $*"; echo; exit 1; }
+
+# sanity checks
+[[ $# -ne 0 ]]              || errorexit "no inputfile specified"
+[[ -e `which mediainfo` ]]  || errorexit "mediainfo not found"
+[[ -e `which mysql` ]]      || errorexit "mysql client not found"
+[[ -r $CONFIG ]]            || errorexit "config file not found or not readable"
+
+# source config
+. $CONFIG
+
+# filename
+NAME=$(basename $1)
+
+# write mediainfo output to file for faster grepping
+mediainfo $1 > /tmp/mi_out
+mediainfo -f $1 > /tmp/mi_vout
+
+# no need to change the following vars
+CDATE=$(date '+%Y-%m-%d %H:%M:%S')
+SIZE=$(cat /tmp/mi_vout | grep 'File size' | head -1 | sed 's/^.*:\ //')
+
+#video
+V_WIDTH=$(cat /tmp/mi_vout | grep '^Width' | head -1 | sed 's/^.*:\ //')
+V_HEIGHT=$(cat /tmp/mi_vout | grep '^Height' | head -1 | sed 's/^.*:\ //')
+V_CODEC=$(cat /tmp/mi_out | grep '^Codec ID ' | head -1 | sed 's/^.*:\ //')
+
+[[ "$V_CODEC" == "XVID" ]] && V_CODEC="XviD"
+[[ "$V_CODEC" == "V_MPEG4/ISO/AVC" ]] && V_CODEC="H.264"
+
+V_BITRATE=$(cat /tmp/mi_out | grep 'Nominal bit rate' | sed 's/^.*:\ //;s/Kbps//;s/\ //')
+
+[[ -z $V_BITRATE ]] && V_BITRATE=$(cat /tmp/mi_out | grep 'Bit rate ' | head -1 | sed 's/^.*:\ //;s/Kbps//;s/\ //')
+
+# audio
+A_CTYPE=$(cat /tmp/mi_out | grep -A 10 '^Audio' | grep 'Format\ *: ' | sed 's/^.*:\ //')
+A_CHANS=""
+
+# determine the number of audio channels per track and convert to an actual name
+n=0
+
+for i in $(cat /tmp/mi_out | grep 'Channel(s)' | grep -oe '[0-9]*') ; do
+    case $i in
+        '1') A_CHANS+=" Mono"               ;;
+        '2') A_CHANS+=" Stereo"             ;;
+        '3') A_CHANS+=" 3-Stereo"           ;;
+        '4') A_CHANS+=" 4.0"                ;;
+        '6') A_CHANS+=" 5.1"                ;;
+        '7') A_CHANS+=" 6.1"                ;;
+        '8') A_CHANS+=" 7.1"                ;;
+          *) A_CHANS+=" ${i%% *} channel"   ;;
+    esac
+    n=$(($n+1))
+done
+
+for ((i=1; i<=$n; i++)); do
+    [[ $i -gt 1 ]] && A_CODEC+=', '
+    A_CODEC+="$(echo $A_CTYPE | tr ' ' '\n' | sed -n $i'p') $(echo $A_CHANS | tr ' ' '\n' | sed -n $i'p')"
+done
+
+# subtitles
+S_COUNT=$(cat /tmp/mi_out | grep 'Codec ID.*:\ S.*' | wc -l)
+S_LANG=$(cat /tmp/mi_out | grep -A 3 'Codec ID.*:\ S.*' | grep 'Language.*:\ English')
+S_ASS=$(cat /tmp/mi_out | grep -A 3 'Codec ID.*:\ S.*' | grep 'Advanced Sub Station Alpha')
+S_TITLES=""
+
+[[ $S_COUNT -gt 1 && -n $S_LANG ]] && S_TITLES="english + misc"
+[[ $S_COUNT -gt 1 && -z $S_LANG ]] && S_TITLES="misc"
+[[ $S_COUNT -eq 1 && -z $S_LANG ]] && S_TITLES="english"
+[[ $S_COUNT -eq 1 && -n $S_LANG ]] && S_TITLES="english"
+[[ $S_COUNT -gt 0 && -n $S_ASS ]] && S_TITLES+=" (ASS)"
+
+# add new entry to mysql database and insert mediainfo output
+mysql --protocol=tcp -H $SQL_HOST -P $SQL_PORT -D $SQL_DB -u $SQL_USER -p$SQL_PASS -e "INSERT into videodata SET \
+owner_id=$SQL_OWNER,created='$CDATE',mediatype=14,filename='$NAME',filesize='$SIZE',video_width='$V_WIDTH',\
+video_height='$V_HEIGHT',video_codec='$V_CODEC',custom2='$S_TITLES',custom5='$V_BITRATE',audio_codec='$A_CODEC';"
+
+# print url to videodb edit page of your most recent entry
+DBID=$(mysql --protocol=tcp -H $SQL_HOST -P $SQL_PORT -D $SQL_DB -u $SQL_USER -p$SQL_PASS -e "\
+SELECT id FROM videodata WHERE id = ( SELECT MAX( id ) FROM videodata );" | sed -n 2p)
+#WHERE id = ( SELECT LAST_INSERT_ID() );" | sed -n 2p)
+echo " "
+echo "edit url: $VDB_PATH/edit.php?id=$DBID"
+echo " "
+
