@@ -2,7 +2,7 @@
 # vim: fdm=marker ts=4 sw=4
 
 # vdb_insert
-# feed videodb (http://www.videodb.net) database from mediainfo output
+# feed videodb (http://www.videodb.net) database with output from mediainfo
 #
 # dependencies: mediainfo, mysql-clients
 
@@ -24,19 +24,19 @@ errorexit() { echo; echo "error: $*"; echo; exit 1; }
 # filename
 NAME=$(basename $1)
 
-# write mediainfo output to file for faster grepping
+# write mediainfo output to file for faster 'grepping'
 mediainfo $1 > /tmp/mi_out
 mediainfo -f $1 > /tmp/mi_vout
 
-# no need to change the following vars
 CDATE=$(date '+%Y-%m-%d %H:%M:%S')
 SIZE=$(cat /tmp/mi_vout | grep 'File size' | head -1 | sed 's/^.*:\ //')
 
-#video
+# video
 V_WIDTH=$(cat /tmp/mi_vout | grep '^Width' | head -1 | sed 's/^.*:\ //')
 V_HEIGHT=$(cat /tmp/mi_vout | grep '^Height' | head -1 | sed 's/^.*:\ //')
 V_CODEC=$(cat /tmp/mi_out | grep '^Codec ID ' | head -1 | sed 's/^.*:\ //')
 
+# video codecs (incomplete)
 [[ "$V_CODEC" == "XVID" ]] && V_CODEC="XviD"
 [[ "$V_CODEC" == "V_MPEG4/ISO/AVC" ]] && V_CODEC="H.264"
 
@@ -48,7 +48,7 @@ V_BITRATE=$(cat /tmp/mi_out | grep 'Nominal bit rate' | sed 's/^.*:\ //;s/Kbps//
 A_CTYPE=$(cat /tmp/mi_out | grep -A 10 '^Audio' | grep 'Format\ *: ' | sed 's/^.*:\ //')
 A_CHANS=""
 
-# determine the number of audio channels per track and convert to an actual name
+# determine the number of audio channels per track and translate
 n=0
 
 for i in $(cat /tmp/mi_out | grep 'Channel(s)' | grep -oe '[0-9]*') ; do
@@ -60,7 +60,7 @@ for i in $(cat /tmp/mi_out | grep 'Channel(s)' | grep -oe '[0-9]*') ; do
         '6') A_CHANS+=" 5.1"                ;;
         '7') A_CHANS+=" 6.1"                ;;
         '8') A_CHANS+=" 7.1"                ;;
-          *) A_CHANS+=" ${i%% *} channel"   ;;
+          *) A_CHANS+=" ${i%% *}-channels"  ;;
     esac
     n=$(($n+1))
 done
@@ -80,7 +80,7 @@ S_TITLES=""
 [[ $S_COUNT -gt 1 && -z $S_LANG ]] && S_TITLES="misc"
 [[ $S_COUNT -eq 1 && -z $S_LANG ]] && S_TITLES="english"
 [[ $S_COUNT -eq 1 && -n $S_LANG ]] && S_TITLES="english"
-[[ $S_COUNT -gt 0 && -n $S_ASS ]] && S_TITLES+=" (ASS)"
+[[ $S_COUNT -gt 0 && -n $S_ASS ]]  && S_TITLES+=" (ASS)"
 
 # add new entry to mysql database and insert mediainfo output
 mysql --protocol=tcp -H $SQL_HOST -P $SQL_PORT -D $SQL_DB -u $SQL_USER -p$SQL_PASS -e "INSERT into videodata SET \
