@@ -17,6 +17,7 @@ errorexit() { echo; echo "error: $*"; echo; exit 1; }
 [[ -e `which mediainfo` ]]  || errorexit "mediainfo not found"
 [[ -e `which mysql` ]]      || errorexit "mysql client not found"
 [[ -r $CONFIG ]]            || errorexit "config file not found or not readable"
+[[ -z "$SQL_HOST" ]]        || SQL_HOST="-H $SQL_HOST"
 
 # source config
 . $CONFIG
@@ -83,12 +84,12 @@ S_TITLES=""
 [[ $S_COUNT -gt 0 && -n $S_ASS ]]  && S_TITLES+=" (ASS)"
 
 # add new entry to mysql database and insert mediainfo output
-mysql --protocol=tcp -H $SQL_HOST -P $SQL_PORT -D $SQL_DB -u $SQL_USER -p$SQL_PASS -e "INSERT into videodata SET \
+mysql --protocol=tcp $SQL_HOST -P $SQL_PORT -D $SQL_DB -u $SQL_USER -p$SQL_PASS -e "INSERT into videodata SET \
 owner_id=$SQL_OWNER,created='$CDATE',mediatype=14,filename='$NAME',filesize='$SIZE',video_width='$V_WIDTH',\
 video_height='$V_HEIGHT',video_codec='$V_CODEC',custom2='$S_TITLES',custom5='$V_BITRATE',audio_codec='$A_CODEC';"
 
 # print url to videodb edit page of your most recent entry
-DBID=$(mysql --protocol=tcp -H $SQL_HOST -P $SQL_PORT -D $SQL_DB -u $SQL_USER -p$SQL_PASS -e "\
+DBID=$(mysql --protocol=tcp $SQL_HOST -P $SQL_PORT -D $SQL_DB -u $SQL_USER -p$SQL_PASS -e "\
 SELECT id FROM videodata WHERE id = ( SELECT MAX( id ) FROM videodata );" | sed -n 2p)
 #WHERE id = ( SELECT LAST_INSERT_ID() );" | sed -n 2p)
 echo " "
