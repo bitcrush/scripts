@@ -40,6 +40,10 @@ case $FILENAME in
 	SHOW="The.Big.Bang.Theory"
 	EPURL="http://epguides.com/BigBangTheory/"
 	;;
+    deadwood*)
+	SHOW="Deadwood"
+	EPURL="http://epguides.com/Deadwood/"
+	;;
     futurama*)
 	SHOW="Futurama"
 	EPURL="http://epguides.com/Futurama/"
@@ -79,6 +83,10 @@ case $FILENAME in
     south?park*)
 	SHOW="South.Park"
 	EPURL="http://epguides.com/SouthPark/"
+	;;
+    justified*)
+	SHOW="Justified"
+	EPURL="http://epguides.com/Justified/"
 	;;
     *)
 	echo "Whut ? The show is unknown."
