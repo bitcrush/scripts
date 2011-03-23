@@ -29,21 +29,21 @@ NAME=$(basename $1)
 mediainfo $1 > /tmp/mi_out
 mediainfo -f $1 > /tmp/mi_vout
 
+TRIM="tr -d '[:alpha:][:blank:][:punct:]'"
 CDATE=$(date '+%Y-%m-%d %H:%M:%S')
-SIZE=$(cat /tmp/mi_vout | grep 'File size' | head -1 | sed 's/^.*:\ //')
+SIZE=$(cat /tmp/mi_vout | grep 'File size' | head -1 | $TRIM)
 
 # video
-V_WIDTH=$(cat /tmp/mi_vout | grep '^Width' | head -1 | sed 's/^.*:\ //')
-V_HEIGHT=$(cat /tmp/mi_vout | grep '^Height' | head -1 | sed 's/^.*:\ //')
+V_WIDTH=$(cat /tmp/mi_vout | grep '^Width' | head -1 | $TRIM)
+V_HEIGHT=$(cat /tmp/mi_vout | grep '^Height' | head -1 | $TRIM)
 V_CODEC=$(cat /tmp/mi_out | grep '^Codec ID ' | head -1 | sed 's/^.*:\ //')
 
 # video codecs (incomplete)
 [[ "$V_CODEC" == "XVID" ]] && V_CODEC="XviD"
 [[ "$V_CODEC" == "V_MPEG4/ISO/AVC" ]] && V_CODEC="H.264"
 
-V_BITRATE=$(cat /tmp/mi_out | grep 'Nominal bit rate' | sed 's/^.*:\ //;s/Kbps//;s/\ //')
-
-[[ -z $V_BITRATE ]] && V_BITRATE=$(cat /tmp/mi_out | grep 'Bit rate ' | head -1 | sed 's/^.*:\ //;s/Kbps//;s/\ //')
+# determine bitrate without rounding up (max failure -1kbps)
+V_BITRATE=$(($(cat /tmp/mi_vout | grep -P 'Nominal bit rate|Bit rate' | head -1 | $TRIM)/1000))
 
 # audio
 A_CTYPE=$(cat /tmp/mi_out | grep -A 10 '^Audio' | grep 'Format\ *: ' | sed 's/^.*:\ //')
