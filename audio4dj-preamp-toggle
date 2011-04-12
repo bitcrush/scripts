@@ -1,25 +1,25 @@
 #!/bin/bash
 
-# this script toggles the preamp mode on an Audio4DJ or Audio8DJ usb soundcard
+# this script toggles the preamp mode on Native Instruments usb soundcards
 # this works with either one of both cards connected
 
 # functions
 helpmsg() {
-    echo "a tool to toggle the preamp mode on Audio4DJ and Audio8DJ soundcards"
+    echo "A tool to toggle the input mode on Native Instruments usb soundcards"
     echo
     echo "usage: ${0##*/} [MODE]"
     echo
-    echo "preamp modes:"
-    echo "line      turns off phono preamplification (use with timecode cds)"
-    echo "phono     phono preamplification for vinyl playback/recording"
-    echo "vc        phono preamplification for vinyl control (use with timecode vinyls)"
+    echo "input modes:"
+    echo "  line      turns off phono preamplification (for use with timecode cds)"
+    echo "  phono     turns on phono preamplification for vinyl playback/recording"
+    echo "  vc        turns on phono preamplification for vinyl control (for use with timecode vinyls)"
     echo
     echo "current mode: $current"
     echo
     exit $1;
 }
 errorexit() { echo "error: $1"; exit $2; }
-amixertoggle() { amixer -c ${dev##* } cset numid=1 $1 > /dev/null 2&>1; }
+amixertoggle() { amixer -qc ${dev##* } cset numid=1 $1; }
 
 # check for first commandline argument
 [[ -z "$1" ]] && errorexit "use ${0##*/} [line|phono|vc] | [-h|--help]" 1
