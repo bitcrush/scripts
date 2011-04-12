@@ -2,7 +2,7 @@
 
 # functions
 helpmsg() {
-    echo "A tool to toggle the input mode on Native Instruments usb soundcards"
+    echo "A tool to toggle the input mode on Native Instruments usb sound cards"
     echo
     echo "usage: ${0##*/} [MODE]"
     echo
@@ -21,17 +21,18 @@ amixertoggle() { amixer -qc ${dev##* } cset numid=1 $1; }
 # check for first commandline argument
 [[ -z "$1" ]] && errorexit "use ${0##*/} [line|phono|vc] | [-h|--help]" 1
 
-# determine usb soundcard
-card=$(aplay -l | grep -o Audio.DJ)
+# determine usb sound card
+card=$(aplay -l | grep -o Audio[48]DJ)
 
 # check if card is connected
-[[ -z "$card" ]] && errorexit "$card is not connected" 1
+[[ -z "$card" ]] && errorexit "couldn't find Native Instruments sound card" 1
 
 # determine device number
-dev=$(aplay -l | grep $card | grep -o "card .")
+dev=$(aplay -l | grep $card | grep -o 'card [0-9]*')
 
 # get current input mode
-current=$(amixer -c ${dev##* } cget numid=1 | grep ': values=.')
+current=$(amixer -c ${dev##* } cget numid=1 | grep ': values=[0-2]')
+[[ ${current##*=} != [0-2] ]] && current="unknown"
 [[ ${current##*=} == 1 ]] && current="line"
 [[ ${current##*=} == 2 ]] && current="phono"
 [[ ${current##*=} == 0 ]] && current="vc"
@@ -39,25 +40,15 @@ current=$(amixer -c ${dev##* } cget numid=1 | grep ': values=.')
 result=0
 
 case $1 in
-    line)
-        amixertoggle 1
-        ;;
-    phono)
-        amixertoggle 2
-        ;;
-    vc)
-        amixertoggle 0
-        ;;
-    -h|--help)
-        helpmsg 0
-        ;;
-    *)
-        errorexit "use ${0##*/} [line|phono|vc] | [-h|--help]" 1
-        ;;
+    line)       amixertoggle 1 ;;
+    phono)      amixertoggle 2 ;;
+    vc)         amixertoggle 0 ;;
+    -h|--help)  helpmsg 0 ;;
+    *)          errorexit "use ${0##*/} [line|phono|vc] | [-h|--help]" 1 ;;
 esac
 
 result=$?
 
 # print out error if anything went wrong
-[[ $result -ne 0 ]] && errorexit "couldn't set $card input preamp" $result
+[[ $result -ne 0 ]] && errorexit "couldn't set $card input mode" $result
 
