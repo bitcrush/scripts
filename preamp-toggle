@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# this script toggles the preamp mode on Native Instruments usb soundcards
-# this works with either one of both cards connected
-
 # functions
 helpmsg() {
     echo "A tool to toggle the input mode on Native Instruments usb soundcards"
