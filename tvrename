@@ -84,6 +84,10 @@ case $FILENAME in
 	SHOW="South.Park"
 	EPURL="http://epguides.com/SouthPark/"
 	;;
+    treme*)
+	SHOW="Treme"
+	EPURL="http://epguides.com/Treme/"
+	;;
     justified*)
 	SHOW="Justified"
 	EPURL="http://epguides.com/Justified/"
