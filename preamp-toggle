@@ -1,37 +1,38 @@
 #!/bin/bash
 
 # functions
-helpmsg() {
+amixernumget()  { amixer -c $card cget numid=$1 2> /dev/null; }
+amixertoggle()  { amixer -qc $card cset numid=$1 $2 2> /dev/null; }
+errorexit()     { echo "error: $1"; exit $2; }
+helpmsg()       {
     echo "A tool to toggle the input mode on Native Instruments usb sound cards"
     echo
-    echo "usage: ${0##*/} [MODE]"
+    echo -e "usage:\t ${0##*/} [OPTIONS]"
     echo
-    echo "input modes:"
-    echo "  line      turns off phono preamplification (for use with timecode cds)"
-    echo "  phono     turns on phono preamplification for vinyl playback/recording"
-    echo "  vc        turns on phono preamplification for vinyl control (for use with timecode vinyls)"
+    echo -e "options:"
+    echo -e "  -h\t\t display this help and exit"
+    echo -e "  -g MODE\t toggle ground lift for input mode (Audio8DJ only)"
+    echo -e "  -i MODE\t select input mode"
     echo
-    echo "current mode: $current"
+    echo -e "input modes:"
+    echo -e "  line\t turns off phono preamplification (for use with timecode cds)"
+    echo -e "  phono\t turns on phono preamplification for vinyl playback/recording"
+    echo -e "  vc\t turns on phono preamplification for vinyl control (for use with timecode vinyls)"
+    echo
+    echo -e "current input mode: $current"
     echo
     exit $1;
 }
-errorexit() { echo "error: $1"; exit $2; }
-amixertoggle() { amixer -qc ${dev##* } cset numid=1 $1; }
 
-# check for first commandline argument
-[[ -z "$1" ]] && errorexit "use ${0##*/} [line|phono|vc] | [-h|--help]" 1
+# check for alsa-utils
+[[ -x `which amixer` ]] || errorexit "amixer not found or execute permission not granted. do you have alsa-utils installed?" 1
+[[ -x `which aplay` ]] || errorexit "aplay not found or execute permission not granted. do you have alsa-utils installed?" 1
 
 # determine usb sound card
-card=$(aplay -l | grep -o Audio[48]DJ)
-
-# check if card is connected
-[[ -z "$card" ]] && errorexit "couldn't find Native Instruments sound card" 1
-
-# determine device number
-dev=$(aplay -l | grep $card | grep -o 'card [0-9]*')
+card=$(aplay -l | grep -o 'Audio[48]DJ') || errorexit "couldn't find Native Instruments sound card" 1
 
 # get current input mode
-current=$(amixer -c ${dev##* } cget numid=1 | grep ': values=[0-2]')
+current=$(amixernumget 1 2> /dev/null | grep ': values=[0-2]')
 [[ ${current##*=} != [0-2] ]] && current="unknown"
 [[ ${current##*=} == 1 ]] && current="line"
 [[ ${current##*=} == 2 ]] && current="phono"
@@ -40,9 +41,9 @@ current=$(amixer -c ${dev##* } cget numid=1 | grep ': values=[0-2]')
 result=0
 
 case $1 in
-    line)       amixertoggle 1 ;;
-    phono)      amixertoggle 2 ;;
-    vc)         amixertoggle 0 ;;
+    line)       amixertoggle 1 1 ;;
+    phono)      amixertoggle 1 2 ;;
+    vc)         amixertoggle 1 0 ;;
     -h|--help)  helpmsg 0 ;;
     *)          errorexit "use ${0##*/} [line|phono|vc] | [-h|--help]" 1 ;;
 esac
