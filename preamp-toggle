@@ -11,8 +11,9 @@ helpmsg()       {
     echo
     echo -e "options:"
     echo -e "  -h\t\t display this help and exit"
-    echo -e "  -g MODE\t toggle ground lift for input mode (Audio8DJ only)"
     echo -e "  -i MODE\t select input mode"
+    echo -e "  -g MODE\t toggle ground lift for input mode (Audio8DJ only)"
+    echo -e "  -s on|off\t toggle software lock (Audio8DJ only)"
     echo
     echo -e "input modes:"
     echo -e "  line\t turns off phono preamplification (for use with timecode cds)"
@@ -34,19 +35,48 @@ card=$(aplay -l | grep -o 'Audio[48]DJ') || errorexit "couldn't find Native Inst
 # get current input mode
 current=$(amixernumget 1 2> /dev/null | grep ': values=[0-2]')
 [[ ${current##*=} != [0-2] ]] && current="unknown"
-[[ ${current##*=} == 1 ]] && current="line"
-[[ ${current##*=} == 2 ]] && current="phono"
-[[ ${current##*=} == 0 ]] && current="vc"
+[[ ${current##*=} == 1 ]]     && current="line"
+[[ ${current##*=} == 2 ]]     && current="phono"
+[[ ${current##*=} == 0 ]]     && current="vc"
 
 result=0
 
-case $1 in
-    line)       amixertoggle 1 1 ;;
-    phono)      amixertoggle 1 2 ;;
-    vc)         amixertoggle 1 0 ;;
-    -h|--help)  helpmsg 0 ;;
-    *)          errorexit "use ${0##*/} [line|phono|vc] | [-h|--help]" 1 ;;
-esac
+#while getopts ":igsh:" optname
+#    do
+#        case $optname in
+#            "i")
+
+for (( i=1; i<=$#; i++ )) ; do
+    case ${!i} in
+        -i) shift
+            case ${!i} in
+                line)       amixertoggle 1 1 ;;
+                phono)      amixertoggle 1 2 ;;
+                vc)         amixertoggle 1 0 ;;
+                *)          errorexit "\"${!i}\" is not a valid input mode. use -h for help." 1 ;;
+            esac
+            ;;
+        -g) shift
+            [[ $card == "Audio8DJ" ]] || errorexit "GND lift is not supported by this sound card." 1
+            case ${!i} in
+                line)       amixertoggle 3 1 ;;
+                phono)      amixertoggle 4 1 ;;
+                vc)         amixertoggle 2 1 ;;
+                *)          errorexit "\"${!i}\" is not a valid input mode. use -h for help." 1 ;;
+            esac
+            ;;
+        -s) shift
+            [[ $card == "Audio8DJ" ]] || errorexit "Software lock is not supported by this sound card." 1
+            case ${!i} in
+                on)         amixertoggle 5 1 ;;
+                off)        amixertoggle 5 0 ;;
+                *)          errorexit "\"${!i}\" is not a valid parameter. use \"on\" or \"off\"." 1 ;;
+            esac
+            ;;
+        -h|--help)  helpmsg 0 ;;
+        *)          errorexit "use ${0##*/} [line|phono|vc] | [-h|--help]" 1 ;;
+    esac
+done
 
 result=$?
 
