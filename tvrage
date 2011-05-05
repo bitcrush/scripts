@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# a script to query the tvrage.com API
+#
+# dependencies:
+# - xmlstarlet (http://xmlstar.sourceforge.net)
+
+# check for xmlstarlet
+xml=$(`which xml` --version | head -1)
+[[ $xml =~ ^[0-9]\.[0-9]\.[0-9]$ ]] || eexit "error: xmlstarlet not installed or version unknown." 1
+
+# constants
+QRY=$(echo $* | sed 's/ /%20/g')
+TVRKEY="6KvQNAndRGL4Y4f7Aqvw"
+TVDKEY="5B19821B1F1C59A0"
+TVRSURL="http://services.tvrage.com/myfeeds/search.php?key=$TVRKEY"
+TVREURL="http://services.tvrage.com/myfeeds/episodeinfo.php?key=$TVRKEY"
+TVDSURL="http://thetvdb.com/api/GetSeries.php?language=en&seriesname="
+FACTOR=5
+IFS='¦'
+
+# functions {{{
+eexit() { echo "$1"; exit $2; }
+
+tvrsquery() {
+    xml sel --net -t -m "//show" \
+    -v "concat(showid,'¦',name,'¦',started,'¦',link,'¦')" -n \
+    "${TVRSURL}&show=$1" | \
+    htmlconv | \
+    nl -w2 -s '¦'
+}
+
+tvrequery() {
+    xml sel --net -t -m "//show" \
+    -v "episode/title" \
+    "${TVREURL}&sid=$1&ep=$2" | \
+    htmlconv
+}
+
+tvdsquery() {
+    xml sel --net -t -m "//Series" \
+    -v "concat(seriesid,'¦',SeriesName,'¦',FirstAired,'¦')" -n \
+    "${TVDSURL}$1" | \
+    htmlconv | \
+    nl -w2 -s '¦'
+}
+
+htmlconv() {
+    sed '
+        s/&amp;\(amp;\)*/\&/g
+        '
+}
+
+fsconv() {
+    sed '
+	s/&/And/g
+	s/[,;:\?\!]//g
+	s/\b(.)/\U&/g
+	s/\.\ /\ /g
+	s/(.)/\L&/g
+	s/\ /./g
+        '
+}
+
+tvdetect() {
+    find . -type f -iname '*.avi' -o -iname '*.mkv' -o -iname '*.ogm' -o -iname '*.wmv' -o -iname '*.mp4'
+}
+
+# }}}
+
+# create array and feed with search results
+SHOWLIST=( `tvrsquery $QRY` ); unset IFS
+
+
+MAXCOUNT=${#SHOWLIST[@]}
+[[ $MAXCOUNT = 0 ]] && eexit "no search results found" 1
+unset SHOWLIST[$((MAXCOUNT - 1))]
+MAXCOUNT=${#SHOWLIST[@]}
+
+if [[ $MAXCOUNT = $FACTOR ]] ; then
+    QSHOW=1;
+else
+    echo
+    # print "RESULTNR  SHOWTITLE (YEAR)" for each search result
+    for QSHOW in $(seq $((MAXCOUNT / $FACTOR))); do
+        echo "$(printf '%2d' ${SHOWLIST[$((QSHOW * $FACTOR - 5))]//\n/})  ${SHOWLIST[$((QSHOW * $FACTOR - 3))]} (${SHOWLIST[$((QSHOW * $FACTOR - 2))]})"
+    done
+
+    echo
+    echo -n "number (q to quit): "
+    read QSHOW
+    [[ $QSHOW =~ ^[0-9]+$ ]] || exit 0
+fi
+
+SHOWID=${SHOWLIST[$((QSHOW * $FACTOR - 4))]}
+AID=$(echo ${SHOWLIST[$((QSHOW * $FACTOR - 5))]} | tr -d '\n')
+SNM=${SHOWLIST[$((QSHOW * $FACTOR - 3))]}
+SYR=${SHOWLIST[$((QSHOW * $FACTOR - 2))]}
+URL=${SHOWLIST[$((QSHOW * $FACTOR - 1))]}
+
+echo
+#echo "AID:    $AID"
+echo "Title:  $SNM"
+echo "ShowID: $SHOWID"
+echo "Year:   $SYR"
+echo "URL:    $URL"
+echo
+
+echo    "query episode titles (space separated) [Season]x[Episode]"
+echo -n "episodes: "
+read QEP
+echo
+for i in ${QEP[@]}; do
+    EPN=$(tvrequery $SHOWID $i)
+    [[ -n $EPN ]] && echo $EPN || eexit "episode not found" 1
+    [[ -n $EPN ]] && echo $EPN | fsconv || eexit "episode not found" 1
+done
