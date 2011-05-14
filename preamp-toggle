@@ -4,7 +4,7 @@
 amixernumget()  { amixer -c $card cget numid=$1 2> /dev/null; }
 amixertoggle()  { amixer -qc $card cset numid=$1 $2 2> /dev/null; }
 checkconnect()  { if [[ $card == "Audio[48]DJ" ]]; then return 0; else return 1; fi ; }
-errorexit()     { echo "error: $1"; exit $2; }
+errorexit()     { echo "error: $1" >&2; exit 1; }
 helpmsg()       {
     echo "A tool to configure Native Instruments' Audio4DJ and Audio8DJ usb sound cards"
     echo
@@ -39,72 +39,69 @@ helpmsg()       {
 }
 
 # check for alsa-utils
-[[ -x `which amixer` ]] || errorexit "amixer not found or execute permission not granted. do you have alsa-utils installed?" 1
-[[ -x `which aplay` ]]  || errorexit "aplay not found or execute permission not granted. do you have alsa-utils installed?" 1
+[[ -x `which amixer` ]] || errorexit "amixer not found or execute permission not granted. Do you have alsa-utils installed?"
+[[ -x `which aplay` ]]  || errorexit "aplay not found or execute permission not granted. Do you have alsa-utils installed?"
 
 # determine usb sound card
 card=$(aplay -l | grep -o 'Audio[48]DJ')
 
 # get current input mode
 currentim=$(amixernumget 1 2> /dev/null | grep ': values=[0-2]')
-[[ ${currentim##*=} != [0-2] ]] && currentim="unknown"
-[[ ${currentim##*=} = 1 ]]      && currentim="line"
-[[ ${currentim##*=} = 2 ]]      && currentim="phono"
-[[ ${currentim##*=} = 0 ]]      && currentim="vc"
+case ${currentim##*=} in
+    0)  currentim="vc" ;;
+    1)  currentim="line" ;;
+    2)  currentim="phono" ;;
+    *)  currentim="unknown" ;;
+esac
 
 # get further settings for Audio8DJ
 if [[ $card = "Audio8DJ" ]]; then
-    currentgv=$(amixernumget 2 2> /dev/null | grep ': values=[0-1]')
-    [[ ${currentgv##*=} = 0 ]]  && currentgv="off"
-    [[ ${currentgv##*=} = 1 ]]  && currentgv="on"
-    currentgl=$(amixernumget 3 2> /dev/null | grep ': values=[0-1]')
-    [[ ${currentgl##*=} = 0 ]]  && currentgl="off"
-    [[ ${currentgl##*=} = 1 ]]  && currentgl="on"
-    currentgp=$(amixernumget 4 2> /dev/null | grep ': values=[0-1]')
-    [[ ${currentgp##*=} = 0 ]]  && currentgp="off"
-    [[ ${currentgp##*=} = 1 ]]  && currentgp="on"
-    currentsl=$(amixernumget 5 2> /dev/null | grep ': values=[0-1]')
-    [[ ${currentsl##*=} = 0 ]]  && currentsl="off"
-    [[ ${currentsl##*=} = 1 ]]  && currentsl="on"
+    numid=2
+    for option in current{gv,gl,gp,sl}; do
+        eval $option=$(amixernumget $numid 2> /dev/null | grep ': values=[0-1]')
+        [[ ${!option##*=} = 0 ]] && eval $option="off"
+        [[ ${!option##*=} = 1 ]] && eval $option="on"
+        numid=$((numid + 1))
+    done
 fi
 
 # parse options and their arguments
 [[ $# == 0 ]] && helpmsg 0
-[[ $1 =~ ^- ]] || errorexit "Unknown option \"$1\". Use -h for help." 1
+[[ $1 =~ ^- ]] || errorexit "Unknown option \"$1\". Use -h for help."
 while getopts ":i:g:s:h" optname
 do  
     case $optname in
         "h") helpmsg 0 ;;
-        "i") checkconnect || errorexit "couldn't find Native Instruments sound card" 1
+        "i") checkconnect || errorexit "couldn't find Native Instruments sound card"
              case $OPTARG in
                  line)       amixertoggle 1 1 ;;
                  phono)      amixertoggle 1 2 ;;
                  vc)         amixertoggle 1 0 ;;
-                 *)          errorexit "\"$OPTARG\" is not a valid input mode. Use -h for help." 1 ;;
+                 *)          errorexit "\"$OPTARG\" is not a valid input mode. Use -h for help." ;;
              esac
              ;;
-        "g") checkconnect || errorexit "couldn't find Native Instruments sound card" 1
-             [[ $card == "Audio8DJ" ]] || errorexit "GND lift is not supported by this sound card." 1
+        "g") checkconnect || errorexit "couldn't find Native Instruments sound card"
+             [[ $card == "Audio8DJ" ]] || errorexit "GND lift is not supported by this sound card."
              case $OPTARG in
                  line)       [[ $currentgl = "off" ]] && amixertoggle 3 1 || amixertoggle 3 0 ;;
                  phono)      [[ $currentgp = "off" ]] && amixertoggle 4 1 || amixertoggle 4 0 ;;
                  vc)         [[ $currentgv = "off" ]] && amixertoggle 2 1 || amixertoggle 2 0 ;;
                  on)         for id in 2 3 4; do amixertoggle $id 1; done ;;
                  off)        for id in 2 3 4; do amixertoggle $id 0; done ;;
-                 *)          errorexit "\"$OPTARG\" is not a valid input mode. Use -h for help." 1 ;;
+                 *)          errorexit "\"$OPTARG\" is not a valid input mode. Use -h for help." ;;
              esac
              ;;
-        "s") checkconnect || errorexit "couldn't find Native Instruments sound card" 1
-             [[ $card == "Audio8DJ" ]] || errorexit "Software lock is not supported by this sound card." 1
+        "s") checkconnect || errorexit "couldn't find Native Instruments sound card"
+             [[ $card == "Audio8DJ" ]] || errorexit "Software lock is not supported by this sound card."
              case $OPTARG in
                  on)         amixertoggle 5 1 ;;
                  off)        amixertoggle 5 0 ;;
-                 *)          errorexit "\"$OPTARG\" is not a valid parameter. Use \"on\" or \"off\"." 1 ;;
+                 *)          errorexit "\"$OPTARG\" is not a valid parameter. Use \"on\" or \"off\"." ;;
              esac
              ;;
-        "?") errorexit "Unknown option \"-$OPTARG\". Use -h for help." 1 ;;
-        ":") errorexit "No argument value for option \"-$OPTARG\". Use -h for help." 1 ;;
-        *)   errorexit "Unknown error while processing options" 1 ;;
+        "?") errorexit "Unknown option \"-$OPTARG\". Use -h for help." ;;
+        ":") errorexit "No argument value for option \"-$OPTARG\". Use -h for help." ;;
+        *)   errorexit "Unknown error while processing options" ;;
     esac
 done
 
