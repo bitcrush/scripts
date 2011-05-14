@@ -46,7 +46,7 @@ helpmsg()       {
 card=$(aplay -l | grep -o 'Audio[48]DJ')
 
 # get current input mode
-currentim=$(amixernumget 1 2> /dev/null | grep ': values=[0-2]')
+currentim=$(amixernumget 1 | grep ': values=[0-2]')
 case ${currentim##*=} in
     0)  currentim="vc" ;;
     1)  currentim="line" ;;
@@ -58,7 +58,7 @@ esac
 if [[ $card = "Audio8DJ" ]]; then
     numid=2
     for option in current{gv,gl,gp,sl}; do
-        eval $option=$(amixernumget $numid 2> /dev/null | grep ': values=[0-1]')
+        eval $option=$(amixernumget $numid | grep ': values=[0-1]')
         [[ ${!option##*=} = 0 ]] && eval $option="off"
         [[ ${!option##*=} = 1 ]] && eval $option="on"
         numid=$((numid + 1))
