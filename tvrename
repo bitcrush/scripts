@@ -80,6 +80,18 @@ case $FILENAME in
 	SHOW="The.Simpsons"
 	EPURL="http://epguides.com/Simpsons/"
 	;;
+    star.trek.the.next.generation*)
+	SHOW="Star.Trek.The.Next.Generation"
+	EPURL="http://epguides.com/StarTrekTheNextGeneration/"
+	;;
+    star.trek.the.animated.series*)
+	SHOW="Star.Trek.The.Animated.Series"
+	EPURL="http://epguides.com/StarTrekTheAnimatedSeries/"
+	;;
+    star?trek*)
+	SHOW="Star.Trek"
+	EPURL="http://epguides.com/StarTrek/"
+	;;
     south?park*)
 	SHOW="South.Park"
 	EPURL="http://epguides.com/SouthPark/"
@@ -117,6 +129,8 @@ LIST="/tmp/$SHOW.list"
 $WGET -q $EPURL -O $LIST
 
 # regex episode title to taste
+#EPTIT=$(wget -q "http://services.tvrage.com/tools/quickinfo.php?show=StarTrekTheAnimatedSeries&ep=${SEASON}x$EPISODE" -O - | \
+#    grep -oP '(?<=^Episode\ Info@.....\^).*(?=\^[0-9]+)' | \
 EPTIT=$(cat $LIST | grep -E "\s$SEASON-$EPISODE" | \
     sed -r "s/^[^>]*[0-9]*'>//;\
 	    s/<\/a.*$//;\
@@ -127,6 +141,7 @@ EPTIT=$(cat $LIST | grep -E "\s$SEASON-$EPISODE" | \
 	    s/'(.)/'\L\1/g;\
 	    s/\ /./g")
 
+
 # prefix single digit seasons with a "0" (e.g.: S05)
 SEASON=$(printf '%02d' $((10#$SEASON)))
 
@@ -134,7 +149,7 @@ SEASON=$(printf '%02d' $((10#$SEASON)))
 NEWTIT="$SHOW.S${SEASON}E$EPISODE.$EPTIT.$EXT"
 
 # move and rename the file
-mv "$1" "$2"/$NEWTIT
+mv -v "$1" "$2"/$NEWTIT
 
 # clean up
 rm $LIST

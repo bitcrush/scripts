@@ -20,7 +20,7 @@ FACTOR=5
 IFS='¦'
 
 # functions {{{
-eexit() { echo "$1"; exit $2; }
+eexit() { echo "$1" >&2; exit $2; }
 
 tvrsquery() {
     xml sel --net -t -m "//show" \
@@ -63,10 +63,22 @@ fsconv() {
 }
 
 tvdetect() {
-    find . -type f -iname '*.avi' -o -iname '*.mkv' -o -iname '*.ogm' -o -iname '*.wmv' -o -iname '*.mp4'
+    MEDIA=$(find . -type f -iname '*.avi' -o -iname '*.mkv' -o -iname '*.ogm' -o -iname '*.wmv' -o -iname '*.mp4')
+
+    for i in $MEDIA; do
+        echo ${i#./}
+    done
+}
+
+ctrl_c() {
+    echo -ne "\nBye ;)\n"
+    exit 1
 }
 
 # }}}
+
+#Trap keyboard interrupt (control-c)
+trap ctrl_c SIGINT
 
 # create array and feed with search results
 SHOWLIST=( `tvrsquery $QRY` ); unset IFS
@@ -113,5 +125,6 @@ echo
 for i in ${QEP[@]}; do
     EPN=$(tvrequery $SHOWID $i)
     [[ -n $EPN ]] && echo $EPN || eexit "episode not found" 1
-    [[ -n $EPN ]] && echo $EPN | fsconv || eexit "episode not found" 1
+    #[[ -n $EPN ]] && echo $EPN | fsconv || eexit "episode not found" 1
 done
+
