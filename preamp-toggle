@@ -3,7 +3,7 @@
 # functions
 amixernumget()  { amixer -c $card cget numid=$1 2> /dev/null; }
 amixertoggle()  { amixer -qc $card cset numid=$1 $2 2> /dev/null; }
-checkconnect()  { if [[ $card =~ "Audio[48]DJ" ]]; then return 0; else return 1; fi ; }
+checkconnect()  { if [[ $card =~ Audio[48]DJ ]]; then return 0; else return 1; fi ; }
 errorexit()     { echo "error: $1" >&2; exit 1; }
 helpmsg()       {
     echo "A tool to configure Native Instruments' Audio4DJ and Audio8DJ usb sound cards"
