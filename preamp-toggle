@@ -8,7 +8,7 @@ errorexit()     { echo "error: $1" >&2; exit 1; }
 helpmsg()       {
     echo "A tool to configure Native Instruments' Audio4DJ and Audio8DJ usb sound cards"
     echo
-    echo -e "usage:\t ${0##*/} [OPTIONS]"
+    echo -e "usage: ${0##*/} [OPTIONS]"
     echo
     echo -e "options:"
     echo -e "  -h\t\t display this help and exit"
@@ -23,13 +23,13 @@ helpmsg()       {
     echo -e "  vc\t\t turns on phono preamplification for vinyl control (for use with timecode vinyls)"
     echo
     if [[ $card =~ Audio[48]DJ ]]; then
+        echo "detected card: $card"
         echo "current input mode: $currentim"
         if [[ $card = "Audio8DJ" ]]; then
             echo "software lock: $currentsl"
             echo "GND lift for line input: $currentgl"
             echo "GND lift for phono input: $currentgp"
             echo "GND lift for vinyl input: $currentgv"
-            echo
         fi
     else
         echo "No supported sound card found."
@@ -58,9 +58,9 @@ esac
 if [[ $card = "Audio8DJ" ]]; then
     numid=2
     for option in current{gv,gl,gp,sl}; do
-        eval $option=$(amixernumget $numid | grep ': values=[0-1]')
-        [[ ${!option##*=} = 0 ]] && eval $option="off"
-        [[ ${!option##*=} = 1 ]] && eval $option="on"
+        eval $option=$(amixernumget $numid | grep -oE '(values=on)|(values=off)')
+        [[ ${!option##*=} = off ]] && eval $option="off"
+        [[ ${!option##*=} = on ]] && eval $option="on"
         numid=$((numid + 1))
     done
 fi
